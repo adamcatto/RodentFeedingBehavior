@@ -1461,6 +1461,11 @@ async function fsShow(path) {
     $("#fs-up").disabled = !d.parent;
     $("#fs-up").onclick = () => fsShow(d.parent);
     $("#fs-home").onclick = () => fsShow(d.home);
+    // Windows: switch between drives (C:\\, D:\\, network drives).
+    $("#fs-drive").hidden = !d.drives.length;
+    $("#fs-drive").replaceChildren(...d.drives.map((v) => el("option", { value: v }, v)));
+    $("#fs-drive").value = d.drives.find((v) => d.path.toUpperCase().startsWith(v.toUpperCase())) || "";
+    $("#fs-drive").onchange = (e) => fsShow(e.target.value);
     const ok = fsKind === "project" ? d.is_project : fsKind === "model" ? d.is_model : fsKind === "videos" ? d.n_videos > 0 : true;
     $("#fs-choose").disabled = !ok;
     $("#fs-choose").textContent = fsKind === "project" ? "Open this project" : "Use this folder" +

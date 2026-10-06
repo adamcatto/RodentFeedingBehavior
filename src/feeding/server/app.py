@@ -513,8 +513,7 @@ def api_fs(path: str | None = None):
         raise HTTPException(404, f"not a folder: {p}")
     entries = []
     try:
-        children = sorted((c for c in p.iterdir() if c.is_dir() and not c.name.startswith(".")),
-                          key=lambda c: c.name.lower())
+        children = sorted((c for c in p.iterdir() if c.is_dir() and not _hidden(c)), key=lambda c: c.name.lower())
     except PermissionError:
         children = []
     for c in children[:500]:
@@ -532,8 +531,27 @@ def api_fs(path: str | None = None):
     return {
         "path": str(p), "parent": str(p.parent) if p.parent != p else None, "home": str(Path.home()),
         "is_project": (p / PROJECT_CONFIG_NAME).exists(), "is_model": (p / "training_config.json").exists(),
-        "n_videos": here_videos, "entries": entries,
+        "n_videos": here_videos, "entries": entries, "drives": _drives(),
     }
+
+
+def _hidden(p: Path) -> bool:
+    """Hidden folders: dot-folders, and on Windows those marked hidden or system ($Recycle.Bin, ...)."""
+    if p.name.startswith((".", "$")) or p.name == "System Volume Information":
+        return True
+    try:
+        return bool(getattr(p.stat(), "st_file_attributes", 0) & 0x6)  # FILE_ATTRIBUTE_HIDDEN | SYSTEM
+    except OSError:
+        return False
+
+
+def _drives() -> list[str]:
+    """The drive roots on Windows (C:\\, D:\\, ...); empty elsewhere."""
+    if os.name != "nt":
+        return []
+    if hasattr(os, "listdrives"):  # Python 3.12+
+        return list(os.listdrives())
+    return [f"{c}:\\" for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(f"{c}:\\")]
 
 
 # --------------------------------------------------------------------------- videos

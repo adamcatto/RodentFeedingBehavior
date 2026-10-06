@@ -2,7 +2,8 @@
 
 - macOS: the standard Finder chooser via ``osascript``.
 - Linux: ``zenity`` or ``kdialog`` if installed.
-- Windows, or Linux without those: Tk's native dialog (``tkinter``).
+- Windows, or Linux without those: Tk's native dialog (``tkinter``); on Windows without Tk,
+  the Windows Forms dialogs through PowerShell.
 
 Each function returns the chosen path(s), ``None`` if the user cancelled, and
 raises ``NotSupported`` when no dialog can be shown (e.g. a headless server);
@@ -11,6 +12,7 @@ the UI then falls back to its in-page folder browser.
 
 from __future__ import annotations
 
+import os
 import platform
 import shutil
 import subprocess
@@ -81,23 +83,60 @@ _TK_SCRIPT = r"""
 import sys, tkinter as tk
 from tkinter import filedialog
 kind, title, start = sys.argv[1], sys.argv[2], sys.argv[3] or None
-root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
+root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True); root.lift(); root.focus_force()
 if kind == "folder":
-    p = filedialog.askdirectory(title=title, initialdir=start, mustexist=True)
+    p = filedialog.askdirectory(parent=root, title=title, initialdir=start, mustexist=True)
     print(p or "")
 else:
-    ps = filedialog.askopenfilenames(title=title, initialdir=start,
+    ps = filedialog.askopenfilenames(parent=root, title=title, initialdir=start,
         filetypes=[("Videos", "*.mp4 *.avi *.mov *.mpg *.mkv"), ("All files", "*.*")])
     print("\n".join(ps))
 """
 
+# Windows Forms dialogs, for Windows Pythons without Tk. Title and start folder come in
+# through the environment, so they need no quoting.
+_PS_SCRIPT = r"""
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true}
+if ($env:FEEDING_PICK_KIND -eq 'folder') {
+  $d = New-Object System.Windows.Forms.FolderBrowserDialog
+  $d.Description = $env:FEEDING_PICK_TITLE
+  $d.ShowNewFolderButton = $false
+  if ($env:FEEDING_PICK_START) { $d.SelectedPath = $env:FEEDING_PICK_START }
+  if ($d.ShowDialog($owner) -eq 'OK') { $d.SelectedPath }
+} else {
+  $d = New-Object System.Windows.Forms.OpenFileDialog
+  $d.Title = $env:FEEDING_PICK_TITLE
+  $d.Multiselect = $true
+  $d.Filter = 'Videos|*.mp4;*.avi;*.mov;*.mpg;*.mkv|All files|*.*'
+  if ($env:FEEDING_PICK_START) { $d.InitialDirectory = $env:FEEDING_PICK_START }
+  if ($d.ShowDialog($owner) -eq 'OK') { $d.FileNames }
+}
+"""
+
+
+def _windows_pick(kind: str, title: str, start: str | None) -> list[str] | None:
+    try:
+        return _tk_pick(kind, title, start)
+    except NotSupported:
+        if not shutil.which("powershell"):
+            raise
+    env = dict(os.environ, FEEDING_PICK_KIND=kind, FEEDING_PICK_TITLE=title, FEEDING_PICK_START=start or "")
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-STA", "-Command", _PS_SCRIPT],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
+    if r.returncode != 0:
+        raise NotSupported(r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "PowerShell dialog failed")
+    return [p.strip() for p in r.stdout.splitlines() if p.strip()] or None
+
 
 def _tk_pick(kind: str, title: str, start: str | None) -> list[str] | None:
     # A separate process: Tk must own its main thread, and the server's isn't free.
-    r = subprocess.run([sys.executable, "-c", _TK_SCRIPT, kind, title, start or ""], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, "-c", _TK_SCRIPT, kind, title, start or ""], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
     if r.returncode != 0:
         raise NotSupported(r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "Tk dialog failed")
-    out = [p for p in r.stdout.splitlines() if p.strip()]
+    out = [os.path.normpath(p) for p in r.stdout.splitlines() if p.strip()]  # Tk gives C:/... on Windows
     return out or None
 
 
@@ -108,6 +147,8 @@ def pick(kind: str, title: str = "Choose", start: str | None = None) -> list[str
         return _mac_pick(kind, title, start)
     if system == "Linux":
         return _linux_pick(kind, title, start)
+    if system == "Windows":
+        return _windows_pick(kind, title, start)
     return _tk_pick(kind, title, start)
 
 

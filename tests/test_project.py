@@ -195,6 +195,34 @@ def test_native_pick_and_copy_videos(tmp_path, monkeypatch):
     assert len(local.get("/api/videos").json()) == 2
 
 
+def test_folder_browser_and_dialog_scripts(tmp_path):
+    """The in-page folder browser skips hidden folders and lists drives on Windows; the dialog
+    scripts are valid (the PowerShell one is parsed by PowerShell on Windows)."""
+    import os
+    import subprocess
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    import feeding.native_dialogs as nd
+    import feeding.server.app as appmod
+
+    (tmp_path / "videos").mkdir()
+    (tmp_path / ".hidden").mkdir()
+    (tmp_path / "videos" / "a.mp4").write_bytes(b"")
+    d = TestClient(appmod.app).get("/api/fs", params={"path": str(tmp_path)}).json()
+    assert [e["name"] for e in d["entries"]] == ["videos"] and d["entries"][0]["n_videos"] == 1
+    assert bool(d["drives"]) == (os.name == "nt")
+    compile(nd._TK_SCRIPT, "tk-dialog", "exec")
+    if os.name == "nt":
+        assert Path(d["path"]).anchor.upper() in [v.upper() for v in d["drives"]]
+        check = ("$e = $null; [void][System.Management.Automation.Language.Parser]::ParseInput("
+                 "$env:FEEDING_PS, [ref]$null, [ref]$e); $e.Count")
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", check], capture_output=True, text=True,
+                           env=dict(os.environ, FEEDING_PS=nd._PS_SCRIPT))
+        assert r.stdout.strip() == "0", r.stdout + r.stderr
+
+
 def test_sleap_track_args():
     from feeding.config import SleapConfig
 
