@@ -365,7 +365,7 @@ def skeleton_from_model(model_dir: Path) -> dict:
     Pure JSON parsing, so it works without the SLEAP environment. Node objects
     are jsonpickle-encoded; their first occurrence carries the name.
     """
-    raw = json.loads((Path(model_dir) / "training_config.json").read_text())
+    raw = json.loads((Path(model_dir) / "training_config.json").read_text(encoding="utf-8"))
     sk = raw["data"]["labels"]["skeletons"][0]
     nodes: list[str] = []
     by_id: dict[int, str] = {}
@@ -436,7 +436,7 @@ def load_project(path: str | Path | None = None) -> Config:
     """Load a project from its folder or its feeding.yaml (or discover it)."""
     cfg_path = find_project(Path(path) if path else None)
     base = cfg_path.parent
-    raw = yaml.safe_load(cfg_path.read_text()) or {}
+    raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
     sleap = raw.setdefault("sleap", {}) or {}
     raw["sleap"] = sleap
     if not sleap.get("models"):

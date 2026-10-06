@@ -97,7 +97,7 @@ def compute_tracks(poses: pd.DataFrame, ann: BowlAnnotation, cfg: Config) -> pd.
 def _cache_key(cfg: Config, video: str) -> dict:
     preds = prediction_paths(cfg, video)["h5"]
     bp = bowl_path(cfg.paths.bowls, video)
-    ann = BowlAnnotation.model_validate_json(bp.read_text())
+    ann = BowlAnnotation.model_validate_json(bp.read_text(encoding="utf-8"))
     geom = ann.geometry()
     return {
         "predictions_sha256": sha256(preds),
@@ -131,7 +131,7 @@ def load_tracks(cfg: Config, video: str, video_path: Path, use_cache: bool = Tru
     table_p, info_p = derived_paths(cfg, video)
     key = _cache_key(cfg, video)
     if use_cache and table_p.exists() and info_p.exists():
-        info = json.loads(info_p.read_text())
+        info = json.loads(info_p.read_text(encoding="utf-8"))
         if info.get("key") == key:
             return pd.read_parquet(table_p), info
 
@@ -154,5 +154,5 @@ def load_tracks(cfg: Config, video: str, video_path: Path, use_cache: bool = Tru
     }
     table_p.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(table_p)
-    info_p.write_text(json.dumps(info, indent=2) + "\n")
+    info_p.write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
     return df, info

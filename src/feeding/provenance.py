@@ -68,4 +68,4 @@ def now_iso() -> str:
 
 def write_json(path: Path, obj: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, default=str) + "\n")
+    path.write_text(json.dumps(obj, indent=2, default=str) + "\n", encoding="utf-8")

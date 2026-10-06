@@ -93,7 +93,7 @@ def C() -> Config:
 
 def _recent() -> list[dict]:
     try:
-        items = json.loads(RECENT_FILE.read_text())
+        items = json.loads(RECENT_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     return [r for r in items if (Path(r["path"]) / PROJECT_CONFIG_NAME).exists()]
@@ -104,7 +104,7 @@ def _remember(cfg: Config) -> None:
     items.insert(0, {"path": str(cfg.root), "name": cfg.project_name,
                      "opened_at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     RECENT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    RECENT_FILE.write_text(json.dumps(items[:12], indent=2))
+    RECENT_FILE.write_text(json.dumps(items[:12], indent=2), encoding="utf-8")
 
 
 def open_project(path: str | Path) -> Config:
@@ -576,7 +576,7 @@ def api_video(video: str):
     cfg = C()
     _video_path(video)
     prov_p = prediction_paths(cfg, video)["provenance"]
-    prov = json.loads(prov_p.read_text()) if prov_p.exists() else None
+    prov = json.loads(prov_p.read_text(encoding="utf-8")) if prov_p.exists() else None
     current = [str(m.resolve()) for m in _models(video)]
     made_with = None
     if prov and prov.get("model"):
@@ -829,7 +829,7 @@ def _rel_files(d: Path, base: Path, pattern: str) -> list[str]:
 
 def _views_index(d: Path) -> list[dict]:
     p = d / "views" / "index.json"
-    return json.loads(p.read_text()) if p.exists() else []
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
 @app.get("/api/results")
@@ -840,7 +840,7 @@ def api_results():
         m = d / "manifest.json"
         if not m.exists():
             continue
-        man = json.loads(m.read_text())
+        man = json.loads(m.read_text(encoding="utf-8"))
         runs.append({
             "name": d.name, "created_at": man.get("created_at"), "n_videos": man.get("n_videos_analysed"),
             "n_bouts": man.get("n_bouts"), "n_skipped": len(man.get("skipped", {})), "git": man.get("git"),
@@ -852,7 +852,7 @@ def api_results():
 @app.get("/api/results/{run}")
 def api_result(run: str):
     d = _run_dir(run)
-    man = json.loads((d / "manifest.json").read_text())
+    man = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
     ex = d / "exploratory" / "summary.json"
     sessions = d / "sessions.csv"
     return {
@@ -863,7 +863,7 @@ def api_result(run: str):
         "views": _views_index(d),
         "exploratory": {"figures": _rel_files(d / "exploratory", d, "*.png"),
                         "per_animal": _rel_files(d / "exploratory" / "per_animal", d, "*.png"),
-                        "summary": json.loads(ex.read_text()) if ex.exists() else {}},
+                        "summary": json.loads(ex.read_text(encoding="utf-8")) if ex.exists() else {}},
         "per_animal": {k: _rel_files(d / "figures" / k, d, "*.png") for k in ("heatmaps", "tornado_distance", "tornado_speed")},
         "files": sorted(str(p.relative_to(d)) for p in d.rglob("*") if p.is_file() and p.suffix in (".csv", ".xlsx", ".json", ".yaml", ".npz")),
         "notes": man.get("notes", []),
@@ -885,7 +885,7 @@ def api_result_view(run: str, slug: str):
     if not (v / "view.json").exists():
         raise HTTPException(404, f"view {slug!r} has not been run on {run}")
     return {
-        **json.loads((v / "view.json").read_text()),
+        **json.loads((v / "view.json").read_text(encoding="utf-8")),
         "stats_bouts": _records(v / "stats_bouts.csv"), "stats_sessions": _records(v / "stats_sessions.csv"),
         "omnibus_bouts": _records(v / "omnibus_bouts.csv"), "omnibus_sessions": _records(v / "omnibus_sessions.csv"),
         "figures": _rel_files(v / "figures", d, "*.png") + _rel_files(v / "figures", d, "*/*.png"),

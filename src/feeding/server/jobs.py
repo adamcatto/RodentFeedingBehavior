@@ -42,7 +42,7 @@ class Job:
         stamp = time.strftime("%H:%M:%S")
         self.log_lines.append(f"[{stamp}] {line}")
         if self.log_path:
-            with open(self.log_path, "a") as f:
+            with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{stamp}] {line}\n")
 
     def to_dict(self, with_log: bool = False) -> dict:

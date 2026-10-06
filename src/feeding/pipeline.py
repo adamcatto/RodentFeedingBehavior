@@ -194,7 +194,7 @@ def run_analysis(cfg: Config, videos: list[str] | None = None, make_plots: bool 
             log(f"  ! {row.video}: {exc}")
             continue
         prov_p = prediction_paths(cfg, row.video)["provenance"]
-        prov = json.loads(prov_p.read_text()) if prov_p.exists() else {}
+        prov = json.loads(prov_p.read_text(encoding="utf-8")) if prov_p.exists() else {}
         inputs.append({
             "video": row.video,
             "predictions_sha256": results[row.video]["info"]["key"]["predictions_sha256"],

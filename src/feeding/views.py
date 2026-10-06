@@ -52,7 +52,7 @@ def load_occupancy(run_dir: Path) -> tuple[dict[str, np.ndarray], float, dict[st
     z = np.load(p)
     occ = {k: z[k] for k in z.files if k != "__extent__"}
     rims_p = run_dir / "occupancy_rims.json"
-    return occ, float(z["__extent__"]), json.loads(rims_p.read_text()) if rims_p.exists() else {}
+    return occ, float(z["__extent__"]), json.loads(rims_p.read_text(encoding="utf-8")) if rims_p.exists() else {}
 
 
 # Session columns that describe the recording rather than behaviour: kept in sessions.csv, not tested.
@@ -191,7 +191,7 @@ def run_views(run_dir: Path, cfg: Config, views: list[View] | None = None, make_
     views = views if views is not None else views_for(cfg, tables[1])
     occupancy = load_occupancy(run_dir)
     index_p = run_dir / "views" / "index.json"
-    index = {v["slug"]: v for v in (json.loads(index_p.read_text()) if index_p.exists() else [])}
+    index = {v["slug"]: v for v in (json.loads(index_p.read_text(encoding="utf-8")) if index_p.exists() else [])}
     done = []
     for v in views:
         try:

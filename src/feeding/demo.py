@@ -272,6 +272,6 @@ def make_demo(root: Path, animals_per_group: int = 5, seconds: float = 120.0, se
         "SLEAP-format predictions in `data/predictions/`, so no SLEAP model is needed.\n"
         f"{len(groups)} animals ({animals_per_group} Control, {animals_per_group} Treated), "
         "sessions Pre/Post in arenas A (square) and B (round). Treated animals in Post sessions visit the bowl more "
-        "often, feed longer and move more slowly.\n")
-    (root / "demo.json").write_text(json.dumps({"seed": seed, "animals_per_group": animals_per_group, "seconds": seconds}))
+        "often, feed longer and move more slowly.\n", encoding="utf-8")
+    (root / "demo.json").write_text(json.dumps({"seed": seed, "animals_per_group": animals_per_group, "seconds": seconds}), encoding="utf-8")
     return cfg_path

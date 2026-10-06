@@ -14,7 +14,7 @@ def _fake_model(d, nodes):
     (d / "training_config.json").write_text(json.dumps({
         "data": {"labels": {"skeletons": [{"links": [], "nodes": node_objs}]}},
         "model": {"heads": {"single_instance": {"part_names": nodes}, "centroid": None}},
-    }))
+    }), encoding="utf-8")
     return d
 
 
@@ -43,7 +43,7 @@ def test_init_project_with_custom_naming_and_skeleton(tmp_path):
     st = video_status(cfg)
     assert sorted(st.video) == ["ratA_day1_box2", "ratB_day2_box1"]  # "notes" ignored
     assert set(st.animal) == {"ratA", "ratB"}
-    subjects = (tmp_path / "proj" / "metadata" / "subjects.csv").read_text().split()
+    subjects = (tmp_path / "proj" / "metadata" / "subjects.csv").read_text(encoding="utf-8").split()
     assert subjects[0] == "animal,group" and len(subjects) == 3
     assert any("bouts.node" in w for w in warnings)
     from feeding.project import check_project
@@ -65,7 +65,7 @@ def test_minimal_project_and_discovery(tmp_path, monkeypatch):
     model = _fake_model(tmp_path / "m" / "x", ["Snout", "Tail"])
     proj = tmp_path / "minimal"
     (proj / "sub" / "deeper").mkdir(parents=True)
-    (proj / "feeding.yaml").write_text(f"sleap:\n  models:\n    default: {model}\n")
+    (proj / "feeding.yaml").write_text(f"sleap:\n  models:\n    default: {model}\n", encoding="utf-8")
     cfg = load_project(proj)
     assert cfg.skeleton.nodes == ["Snout", "Tail"]  # read from the model
     assert cfg.paths.videos == [proj / "videos"] and cfg.features.speed_nodes == ["Snout", "Tail"]
@@ -80,7 +80,7 @@ def test_minimal_project_and_discovery(tmp_path, monkeypatch):
 def test_config_rejects_unknown_nodes(tmp_path):
     raw = {"skeleton": {"nodes": ["Snout", "Ear", "Tail"]}, "bouts": {"node": "Nose"}}
     p = tmp_path / "feeding.yaml"
-    p.write_text(yaml.safe_dump(raw))
+    p.write_text(yaml.safe_dump(raw), encoding="utf-8")
     with pytest.raises(ValueError, match="bouts.node"):
         load_project(p)
 
@@ -138,7 +138,7 @@ def test_barebones_project_grows(tmp_path, monkeypatch):
     assert {r["animal"]: r["group"] for r in s["subjects"]} == {"m1": "Control", "m2": "Treated"}
     cfg = load_project(root)
     assert cfg.naming.pattern.startswith("^(?P<animal>[^_]+)") and cfg.analysis.conditions == ["pre", "post"]
-    text = (root / "feeding.yaml").read_text()
+    text = (root / "feeding.yaml").read_text(encoding="utf-8")
     assert "# Feeding-behaviour project configuration." in text  # comments preserved by the editor
     # SLEAP inference parameters: described for the form, saved to feeding.yaml, validated.
     s = c.get("/api/project/settings").json()
@@ -149,10 +149,10 @@ def test_barebones_project_grows(tmp_path, monkeypatch):
     assert s["sleap_params"]["batch_size"] == 8 and load_project(root).sleap.tracker == "simple"
     assert c.put("/api/project/settings", json={"sleap_params": {"batch_size": 0}}).status_code == 422
     assert c.put("/api/project/settings", json={"sleap_params": {"bogus": 1}}).status_code == 422
-    text = (root / "feeding.yaml").read_text()
+    text = (root / "feeding.yaml").read_text(encoding="utf-8")
     # Bad settings are rejected and the file is left intact.
     assert c.put("/api/project/settings", json={"pattern": "(?P<x>.*)"}).status_code == 422
-    assert (root / "feeding.yaml").read_text() == text
+    assert (root / "feeding.yaml").read_text(encoding="utf-8") == text
 
 
 def test_native_pick_and_copy_videos(tmp_path, monkeypatch):
@@ -222,7 +222,7 @@ def test_demo_project(tmp_path):
     assert set(st.group) == {"Control", "Treated"} and cfg.analysis.conditions == ["Pre", "Post"]
     assert cfg.naming.chambers == {"A": "square arena", "B": "round arena"} and cfg.quality.drop_nodes == ["TailTip"]
     out = run_analysis(cfg, make_plots=False, log=lambda s: None)
-    assert json.loads((out / "manifest.json").read_text())["n_bouts"] >= 8
+    assert json.loads((out / "manifest.json").read_text(encoding="utf-8"))["n_bouts"] >= 8
     with pytest.raises(FileExistsError):
         make_demo(tmp_path / "demo", log=lambda s: None)
 
@@ -242,7 +242,7 @@ def test_manual_and_help_api():
     import re
 
     for c in chs:
-        text = (docs.docs_dir() / c["file"]).read_text()
+        text = (docs.docs_dir() / c["file"]).read_text(encoding="utf-8")
         for file, anchor in re.findall(r"\]\(([0-9]+-[a-z0-9-]+\.md)(?:#([^)]+))?\)", text):
             assert file in files, (c["file"], file)
             slug = next(x["slug"] for x in chs if x["file"] == file)

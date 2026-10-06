@@ -73,7 +73,7 @@ def project(tmp_path_factory):
         "features": {"speed_nodes": ["Snout", "MidBack"]},
         "analysis": {"unit": "animal"},
     }
-    (root / "feeding.yaml").write_text(yaml.safe_dump(cfg))
+    (root / "feeding.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
     config = load_project(root)
     cx, cy, r = BOWL
     for v in VIDEOS:
@@ -89,13 +89,13 @@ def test_pipeline(project):
     out = run_analysis(cfg, make_plots=False, log=lambda s: None)
     feats = pd.read_csv(out / "bout_features.csv")
     sessions = pd.read_csv(out / "sessions.csv")
-    manifest = json.loads((out / "manifest.json").read_text())
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     assert len(sessions) == len(VIDEOS)
     # ~6 bowl visits per video; the dropout and edges remove a couple.
     assert 3 <= feats.groupby("video").size().min() <= 6
     assert set(feats["group"]) == {"Control", "Treated"}
     assert manifest["n_videos_analysed"] == len(VIDEOS) and not manifest["skipped"]
-    ex = json.loads((out / "exploratory" / "summary.json").read_text())  # conditions default to all, by session
+    ex = json.loads((out / "exploratory" / "summary.json").read_text(encoding="utf-8"))  # conditions default to all, by session
     assert ex["rf_conditions"] == ["Pre", "Post"] and (out / "exploratory" / "rf_conditions.csv").exists()
     stats = pd.read_csv(out / "views" / "standard" / "stats_bouts.csv")
     tested = stats.dropna(subset=["pvalue"])["pair"].unique()
@@ -107,7 +107,7 @@ def test_pipeline(project):
     assert {"MidBack_distance_px", "MidBack_speed_mean"} <= set(sessions["feature"])
     # A run with a single video still completes and says why there are no statistics.
     one = run_analysis(cfg, videos=[VIDEOS[0]], make_plots=True, log=lambda s: None)
-    m1 = json.loads((one / "manifest.json").read_text())
+    m1 = json.loads((one / "manifest.json").read_text(encoding="utf-8"))
     assert m1["n_videos_analysed"] == 1 and any("two groups" in n for n in m1["notes"])
     assert (one / "sessions.csv").exists()
     # ...and still draws the per-animal figures and per-animal box plots.
@@ -129,13 +129,13 @@ def test_pipeline(project):
     figs = vdir / "figures"
     assert (figs / "overview_bouts.png").exists() and (figs / "occupancy.png").exists() and (figs / "pca.png").exists()
     assert (figs / "boxplots_sessions" / "MidBack_speed_mean.png").exists()
-    index = json.loads((out / "views" / "index.json").read_text())
+    index = json.loads((out / "views" / "index.json").read_text(encoding="utf-8"))
     assert [v["slug"] for v in index] == ["standard", summary["slug"]]
     # Cached tracks are reused and invalidated when the bowl changes.
     from feeding.tracks import load_tracks
 
     _, info1 = load_tracks(cfg, VIDEOS[0], cfg.paths.videos[0] / f"{VIDEOS[0]}.mp4")
-    ann = BowlAnnotation.model_validate_json((cfg.paths.bowls / f"{VIDEOS[0]}.json").read_text())
+    ann = BowlAnnotation.model_validate_json((cfg.paths.bowls / f"{VIDEOS[0]}.json").read_text(encoding="utf-8"))
     save_bowl(cfg.paths.bowls, ann.model_copy(update={"top": (48.0, 28.0)}))
     _, info2 = load_tracks(cfg, VIDEOS[0], cfg.paths.videos[0] / f"{VIDEOS[0]}.mp4")
     assert info1["key"] != info2["key"]
@@ -223,7 +223,7 @@ def test_results_and_views_api(project, monkeypatch):
     assert c.put("/api/views", json={"views": [dict(view, groups=view["groups"][:1])]}).status_code == 422
     v = c.put("/api/views", json={"views": [view]}).json()
     assert [x["name"] for x in v["views"]] == ["Control: Pre vs Post"]
-    assert "Control: Pre vs Post" in (root / "feeding.yaml").read_text()
+    assert "Control: Pre vs Post" in (root / "feeding.yaml").read_text(encoding="utf-8")
 
     run = next(r["name"] for r in c.get("/api/results").json() if r["n_videos"] == len(VIDEOS))
     d = c.get(f"/api/results/{run}").json()

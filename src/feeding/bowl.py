@@ -201,14 +201,14 @@ def load_bowl(bowls_dir: Path, video: str) -> BowlAnnotation | None:
     p = bowl_path(bowls_dir, video)
     if not p.exists():
         return None
-    return BowlAnnotation.model_validate_json(p.read_text())
+    return BowlAnnotation.model_validate_json(p.read_text(encoding="utf-8"))
 
 
 def save_bowl(bowls_dir: Path, ann: BowlAnnotation) -> Path:
     ann = ann.model_copy(update={"annotated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     p = bowl_path(bowls_dir, ann.video)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(ann.model_dump(mode="json"), indent=2) + "\n")
+    p.write_text(json.dumps(ann.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8")
     return p
 
 

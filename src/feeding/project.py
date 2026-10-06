@@ -174,7 +174,7 @@ def init_project(
     j = json.dumps
     root.mkdir(parents=True, exist_ok=True)
     video_dirs = ["videos"] + [_store_path(root, f) for f in folders if f != root / "videos"]
-    text = TEMPLATE.read_text().format(
+    text = TEMPLATE.read_text(encoding="utf-8").format(
         name=j(name or root.name), videos=j(video_dirs), pattern=j(pattern), chambers=j(chambers or {}),
         bin_dir=j(str(sleap_bin)) if sleap_bin else "null",
         models=j({k: _store_path(root, v[0]) if len(v) == 1 else [_store_path(root, x) for x in v]
@@ -185,14 +185,14 @@ def init_project(
     for sub in ("videos", "models", "annotations/bowls", "metadata", "data"):
         (root / sub).mkdir(parents=True, exist_ok=True)
     (root / "annotations" / "bowls" / ".gitkeep").touch()
-    cfg_path.write_text(text)
+    cfg_path.write_text(text, encoding="utf-8")
     subjects = root / "metadata" / "subjects.csv"
     if not subjects.exists() or force:
         animals = sorted({i.animal for i in vinfo}, key=natural_key)
         pd.DataFrame({"animal": animals, "group": [""] * len(animals)}).to_csv(subjects, index=False)
     gi = root / ".gitignore"
     if not gi.exists():
-        gi.write_text(".DS_Store\ndata/\n")
+        gi.write_text(".DS_Store\ndata/\n", encoding="utf-8")
     load_project(cfg_path)  # validate what we wrote
     return cfg_path, notes
 
@@ -220,7 +220,7 @@ def update_project(cfg: Config, changes: dict[str, Any]) -> Config:
     y.preserve_quotes = True
     y.width = 120
     path = cfg.source
-    old_text = path.read_text()
+    old_text = path.read_text(encoding="utf-8")
     data = y.load(old_text) or {}
     for dotted, value in changes.items():
         keys = dotted.split(".")
@@ -235,11 +235,11 @@ def update_project(cfg: Config, changes: dict[str, Any]) -> Config:
             node[keys[-1]] = value
     buf = io.StringIO()
     y.dump(data, buf)
-    path.write_text(buf.getvalue())
+    path.write_text(buf.getvalue(), encoding="utf-8")
     try:
         return load_project(path)
     except Exception:
-        path.write_text(old_text)
+        path.write_text(old_text, encoding="utf-8")
         raise
 
 
