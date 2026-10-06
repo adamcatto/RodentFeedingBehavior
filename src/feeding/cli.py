@@ -325,7 +325,7 @@ def embed(
 def demo(
     directory: Annotated[Optional[Path], typer.Argument(help="Folder to create (default: <projects folder>/demo)")] = None,
     animals: Annotated[int, typer.Option(help="Animals per group (two groups)")] = 5,
-    seconds: Annotated[float, typer.Option(help="Length of each video (seconds)")] = 120.0,
+    seconds: Annotated[float, typer.Option(help="Length of each video (seconds, at least 5)")] = 120.0,
     seed: int = 0,
     bowls: Annotated[bool, typer.Option(help="Annotate the bowls (--no-bowls leaves that to you)")] = True,
     force: Annotated[bool, typer.Option(help="Recreate an existing demo project")] = False,
@@ -338,7 +338,7 @@ def demo(
     try:
         cfg_path = make_demo(root, animals, seconds, seed, bowls, force, log=lambda s: None,
                              progress=lambda i, n: typer.echo(f"\r  rendering video {i}/{n}", nl=False))
-    except FileExistsError as exc:
+    except (FileExistsError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from None
     typer.echo(f"\nCreated the demo project at {cfg_path.parent}\nOpen it with: feeding serve {cfg_path.parent}")
 

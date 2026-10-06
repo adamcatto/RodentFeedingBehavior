@@ -228,6 +228,8 @@ def make_demo(root: Path, animals_per_group: int = 5, seconds: float = 120.0, se
     from .project import init_project, update_project
     from .provenance import now_iso, write_json
 
+    if seconds < 5 or animals_per_group < 1:
+        raise ValueError("the demo needs videos of at least 5 seconds and at least one animal per group")
     root = Path(root).expanduser().resolve()
     if (root / "feeding.yaml").exists() and not force:
         raise FileExistsError(f"{root} already contains a project (use --force to recreate the demo)")
