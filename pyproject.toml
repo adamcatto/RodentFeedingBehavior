@@ -1,6 +1,6 @@
 [project]
 name = "rodent-feeding-behavior"
-version = "0.2.1"
+version = "0.3.0"
 description = "Feeding-behaviour analysis of rodents from video: SLEAP pose tracking, bowl contact, feeding bouts, features, group comparisons and figures, with a browser UI."
 readme = "README.md"
 license = "BSD-3-Clause"
