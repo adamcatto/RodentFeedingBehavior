@@ -13,6 +13,8 @@ const el = (tag, attrs = {}, ...kids) => {
   for (const c of kids.flat()) if (c != null) n.append(c);
   return n;
 };
+// File name of a local path, with "/" or "\\" separators (the server may run on Windows).
+const baseName = (p) => p.split(/[\\/]/).pop();
 const api = async (path, opts = {}) => {
   const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r.ok) throw new Error((await r.text()) || r.statusText);
@@ -723,7 +725,7 @@ function updateHeadActions() {
   } else {
     const src = S.detail?.provenance?.source;
     const models = S.detail?.models || [];
-    const modelName = models.map((m) => m.split("/").pop()).join(" + ") || "no model configured";
+    const modelName = models.map(baseName).join(" + ") || "no model configured";
     const srcLabel = !src || src === "sleap-track" ? "SLEAP " + (S.detail?.provenance?.sleap_version || "") : src === "demo" ? "synthetic (demo)" : src;
     st.textContent = (v.has_predictions ? `Predictions: ${srcLabel}` : "No predictions") +
       ` · model ${modelName}` + (S.detail?.predictions_model_differs ? " · predictions were made with a different model" : "") +
@@ -1541,7 +1543,7 @@ function updateLocationHint() {
 function updateNewSummary() {
   const parts = [];
   if (NP.files.length) parts.push(`${NP.files.length} file${NP.files.length > 1 ? "s" : ""} to upload (${fmtMB(NP.files.reduce((a, f) => a + f.size, 0))})`);
-  if (NP.paths.length) parts.push(`${NP.paths.length} file${NP.paths.length > 1 ? "s" : ""} to copy: ${NP.paths.map((p) => p.split("/").pop()).join(", ")}`);
+  if (NP.paths.length) parts.push(`${NP.paths.length} file${NP.paths.length > 1 ? "s" : ""} to copy: ${NP.paths.map(baseName).join(", ")}`);
   if (NP.folder) parts.push(`folder ${NP.folder}`);
   $("#new-videos-summary").textContent = parts.join(" + ") || "No videos chosen yet.";
 }
@@ -1567,7 +1569,7 @@ $("#ptab-new [data-browse='new-videos-folder']").addEventListener("click", async
 $("#ptab-new [data-browse='new-model-other']").addEventListener("click", async () => {
   const p = await pickFolder("model", null, "Choose a SLEAP model folder");
   if (p) {
-    $("#new-model").append(el("option", { value: p }, p.split("/").pop()));
+    $("#new-model").append(el("option", { value: p }, baseName(p)));
     $("#new-model").value = p;
   }
 });
@@ -1648,7 +1650,7 @@ function renderModelRows() {
   $("#set-models").replaceChildren(...ST.modelRows.map((r, i) => {
     const sel = el("select", { onchange: (e) => { r.path = e.target.value; } },
       el("option", { value: "" }, "— choose a model —"),
-      ...opts.map((m) => el("option", { value: m.path }, `${m.name}${m.library.endsWith("/models") && m.path.startsWith(ST.data.root) ? " (project)" : ""}`)),
+      ...opts.map((m) => el("option", { value: m.path }, `${m.name}${/[\\/]models$/.test(m.library) && m.path.startsWith(ST.data.root) ? " (project)" : ""}`)),
       ...(r.path && !opts.some((m) => m.path === r.path) ? [el("option", { value: r.path }, r.path)] : []));
     sel.value = r.path;
     return el("div", { class: "model-row" },

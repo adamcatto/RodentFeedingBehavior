@@ -824,7 +824,7 @@ def _run_dir(run: str) -> Path:
 def _rel_files(d: Path, base: Path, pattern: str) -> list[str]:
     from ..naming import natural_key
 
-    return sorted((str(p.relative_to(base)) for p in d.glob(pattern) if p.is_file()), key=natural_key) if d.exists() else []
+    return sorted((p.relative_to(base).as_posix() for p in d.glob(pattern) if p.is_file()), key=natural_key) if d.exists() else []
 
 
 def _views_index(d: Path) -> list[dict]:
@@ -865,7 +865,7 @@ def api_result(run: str):
                         "per_animal": _rel_files(d / "exploratory" / "per_animal", d, "*.png"),
                         "summary": json.loads(ex.read_text(encoding="utf-8")) if ex.exists() else {}},
         "per_animal": {k: _rel_files(d / "figures" / k, d, "*.png") for k in ("heatmaps", "tornado_distance", "tornado_speed")},
-        "files": sorted(str(p.relative_to(d)) for p in d.rglob("*") if p.is_file() and p.suffix in (".csv", ".xlsx", ".json", ".yaml", ".npz")),
+        "files": sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file() and p.suffix in (".csv", ".xlsx", ".json", ".yaml", ".npz")),
         "notes": man.get("notes", []),
         "sessions": _records(sessions),
     }

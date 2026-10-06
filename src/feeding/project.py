@@ -42,7 +42,7 @@ SINGLE_ANIMAL_HEADS = ({"single_instance"}, {"centroid", "centered_instance"})
 
 
 def slug(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip()).strip("-") or "project"
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip()).strip("-.") or "project"
 
 
 def guess_pattern(names: list[str]) -> str:
@@ -72,10 +72,11 @@ def parse_model_args(args: list[str]) -> dict[str, list[Path]]:
 
 
 def _store_path(root: Path, p: Path) -> str:
-    """Path as written to feeding.yaml: relative if inside the project, else absolute."""
+    """Path as written to feeding.yaml: relative (with "/", so it works on any OS) if inside the
+    project, else absolute."""
     p = Path(p).expanduser().resolve()
     try:
-        return str(p.relative_to(root))
+        return p.relative_to(root).as_posix()
     except ValueError:
         return str(p)
 
