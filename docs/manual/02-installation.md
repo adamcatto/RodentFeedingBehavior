@@ -86,18 +86,38 @@ conda create -y -n sleap -c conda-forge -c nvidia -c sleap -c anaconda sleap
 ```
 
 The tool finds SLEAP automatically when the environment is called `sleap` (or starts with `sleap`) and lives in a
-usual conda location (`~/miniconda3`, `~/miniforge3`, `~/anaconda3`, `~/mambaforge`, `~/opt/…`), or when `sleap-track`
-is on your `PATH`. Otherwise tell it where SLEAP is in either of these ways:
+usual conda location (`~/miniconda3`, `~/miniforge3`, `~/anaconda3`, `~/mambaforge`, `~/opt/…`; on Windows also under
+`AppData\Local` and `C:\ProgramData`), or when `sleap-track` is on your `PATH`. Otherwise tell it where SLEAP is in
+either of these ways:
 
 - **in the app:** *Settings → SLEAP inference → SLEAP environment*, set to the environment's `bin` folder (on Windows,
   its `Scripts` folder);
-- **from a terminal:** set `FEEDING_SLEAP_BIN=/path/to/envs/sleap/bin`.
+- **from a terminal:** set `FEEDING_SLEAP_BIN=/path/to/envs/sleap/bin` (in PowerShell:
+  `$env:FEEDING_SLEAP_BIN = "C:\Users\me\miniforge3\envs\sleap\Scripts"`).
+
+The tool runs SLEAP's programs as if its environment were activated, so you don't need to activate it yourself.
 
 `feeding check` and the app's warning bar report when `sleap-track` cannot be found. The pipeline has been tested with
 SLEAP 1.2 and works with the same command-line options in later 1.x versions.
 
 You also need a **trained SLEAP model** for your setup: a single-animal model (`single_instance`) or a top-down pair
 (`centroid` + `centered_instance`). Train it in SLEAP's own GUI. See [SLEAP pose estimation](05-sleap.md).
+
+## Windows
+
+The tool supports Windows 10 and 11. A few notes:
+
+- **Terminal.** Run the commands in PowerShell or Windows Terminal. `uv run feeding …` works the same as on macOS and
+  Linux.
+- **git.** Install it with `winget install Git.Git` (or from <https://git-scm.com>), or download the repository as a
+  zip from GitHub instead.
+- **Paths.** Type Windows paths as usual (`D:\videos\cohort1`). Paths inside a project are stored with `/`, so a
+  project folder can be moved between Windows, macOS and Linux.
+- **Browse buttons** open the Windows file and folder dialogs. The in-page folder browser (used when the server runs
+  on another computer) has a drive selector.
+- **SLEAP** runs on Windows with an NVIDIA GPU, or on the CPU. Install it in a conda environment as above; the tool
+  finds `sleap-track.exe` in the environment's `Scripts` folder.
+- **ffmpeg** (only for `feeding split`): `winget install Gyan.FFmpeg`, then open a new terminal.
 
 ## Where things are kept
 

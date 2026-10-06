@@ -28,8 +28,9 @@ computer.
 ## Quick start
 
 ```bash
-# 1. Install uv (https://docs.astral.sh/uv/): macOS / Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# 1. Install uv (https://docs.astral.sh/uv/)
+curl -LsSf https://astral.sh/uv/install.sh | sh                                    # macOS / Linux
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
 
 # 2. Get the tool
 git clone https://github.com/adamcatto/RodentFeedingBehavior.git
@@ -44,8 +45,9 @@ uv run feeding serve projects/demo
 Or start with `uv run feeding serve` and click **Try the demo project**. To analyse your own videos, choose
 **Project ▾ → New project**.
 
-Running SLEAP inference yourself needs SLEAP in its own conda environment, which the tool finds automatically, and a
-trained single-animal (or top-down) model. See [Installation](docs/manual/02-installation.md).
+It runs on macOS, Linux and Windows. Running SLEAP inference yourself needs SLEAP in its own conda environment, which
+the tool finds automatically, and a trained single-animal (or top-down) model. See
+[Installation](docs/manual/02-installation.md).
 
 ## Documentation
 

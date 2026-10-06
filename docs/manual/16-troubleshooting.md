@@ -11,7 +11,11 @@ Another program uses the port. Start on another one: `feeding serve --port 8800`
 
 **"Browse…" or "Choose files…" opens an in-page folder browser instead of the system dialog.**
 Native dialogs only open on the computer running the server, and need a desktop session (on Linux, `zenity`, `kdialog`
-or Tk). Type or browse to the path in the page instead, or drag and drop files onto the Videos drop zone.
+or Tk; on Windows, Tk or PowerShell). Type or browse to the path in the page instead, or drag and drop files onto the
+Videos drop zone.
+
+**On Windows, the dialog doesn't appear.**
+It may have opened behind the browser: look for it in the taskbar. The page waits until it is closed.
 
 **A video is missing from the list.**
 Its file name doesn't match the naming pattern. *Settings → Naming* shows which files match and how they are read.
@@ -27,6 +31,12 @@ Results are never changed after the fact: run the analysis again. Comparisons ca
 Set *Settings → SLEAP inference → SLEAP environment* to the environment's `bin` folder (`…/envs/sleap/bin`; on
 Windows `…\envs\sleap\Scripts`). Alternatively, set `FEEDING_SLEAP_BIN`. Check from a terminal that
 `…/bin/sleap-track --help` works.
+
+**On Windows, SLEAP fails with "DLL load failed" or doesn't use the GPU.**
+Check that SLEAP works in its own environment first: `conda activate sleap`, then `sleap-track --help` and
+`python -c "import sleap; sleap.system_summary()"`. If it only fails when started from this tool, set *SLEAP
+environment* to the environment's `Scripts` folder explicitly. A missing GPU is usually an NVIDIA driver too old for
+SLEAP's CUDA version.
 
 **Inference fails with an out-of-memory error.**
 Lower the batch size (*Settings → SLEAP inference*, or `feeding infer --batch-size 2`). Or run on the CPU
@@ -79,7 +89,7 @@ Set the comparison's *Paired* option explicitly (*Always* or *Never*). See
 ## Data and projects
 
 **Can I move a project to another computer?**
-Yes. Copy the project folder. Paths inside it are relative. Videos used in place from elsewhere must be at the same
+Yes, also between Windows, macOS and Linux. Copy the project folder. Paths inside it are relative. Videos used in place from elsewhere must be at the same
 path, or be re-added in *Settings → Videos*. Models outside the project must be re-assigned (or copied in with *Copy
 in* beforehand).
 
