@@ -112,6 +112,7 @@ def open_project(path: str | Path) -> Config:
     _state["cfg"] = cfg
     with _tracks_lock:
         _tracks_cache.clear()
+    frames.close()
     _remember(cfg)
     return cfg
 
@@ -248,6 +249,7 @@ def api_open(body: OpenIn):
 @app.post("/api/project/close")
 def api_close():
     _state["cfg"] = None
+    frames.close()
     return _project_payload()
 
 
@@ -416,6 +418,7 @@ async def api_upload_video(request: Request, name: str, overwrite: bool = False)
     with open(tmp, "wb") as f:
         async for chunk in request.stream():
             f.write(chunk)
+    frames.close(dest)
     tmp.replace(dest)
     _props.pop(str(dest), None)
     if _state["cfg"] is not None and _state["cfg"].root == cfg.root:

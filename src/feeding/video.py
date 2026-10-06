@@ -65,6 +65,14 @@ class FrameReader:
             raise IndexError(f"Frame {idx} unreadable in {path.name}")
         return frame
 
+    def close(self, path: Path | None = None) -> None:
+        """Release one video (or all). Windows cannot replace, move or delete a file that is open."""
+        with self._lock:
+            for p in [Path(path)] if path is not None else list(self._caps):
+                cap, _ = self._caps.pop(p, (None, -1))
+                if cap is not None:
+                    cap.release()
+
     def jpeg(self, path: Path, idx: int, quality: int = 85) -> bytes:
         ok, buf = cv2.imencode(".jpg", self.read(path, idx), [cv2.IMWRITE_JPEG_QUALITY, quality])
         if not ok:

@@ -254,6 +254,21 @@ def test_demo_project(tmp_path):
     with pytest.raises(FileExistsError):
         make_demo(tmp_path / "demo", log=lambda s: None)
 
+    # A video being viewed can be replaced (Windows refuses to replace a file that is still open).
+    from fastapi.testclient import TestClient
+
+    import feeding.server.app as appmod
+
+    appmod.open_project(cfg_path)
+    c = TestClient(appmod.app)
+    v = c.get("/api/videos").json()[0]["video"]
+    assert c.get(f"/api/videos/{v}/frame/5").status_code == 200
+    data = next((tmp_path / "demo" / "videos").glob(f"{v}.*")).read_bytes()
+    r = c.put(f"/api/project/videos/upload?name={v}.mp4&overwrite=true", content=data)
+    assert r.status_code == 200, r.text
+    assert c.get(f"/api/videos/{v}/frame/6").status_code == 200
+    c.post("/api/project/close")
+
 
 def test_manual_and_help_api():
     import importlib
