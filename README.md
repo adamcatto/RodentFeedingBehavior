@@ -107,3 +107,8 @@ tests/
 
 The browser UI is plain HTML, CSS and JavaScript served by FastAPI. The server runs SLEAP and analyses as background
 jobs, one at a time.
+
+## License
+
+BSD 3-Clause; see [LICENSE](LICENSE). You may use, modify and redistribute the code, in academic or any other
+work, provided the copyright notice is kept.

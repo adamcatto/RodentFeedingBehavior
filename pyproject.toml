@@ -3,6 +3,8 @@ name = "rodent-feeding-behavior"
 version = "0.2.0"
 description = "Feeding-behaviour analysis of rodents from video: SLEAP pose tracking, bowl contact, feeding bouts, features, group comparisons and figures, with a browser UI."
 readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 keywords = ["behavior", "neuroscience", "feeding", "SLEAP", "pose estimation", "rodent", "mouse"]
 classifiers = [
@@ -52,7 +54,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 # Only what is in the repository: never local projects, model links or data.
-only-include = ["src", "tests", "docs", "scripts", "models/README.md", "README.md", "pyproject.toml", "uv.lock"]
+only-include = ["src", "tests", "docs", "scripts", "models/README.md", "README.md", "LICENSE", "pyproject.toml", "uv.lock"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/feeding"]
