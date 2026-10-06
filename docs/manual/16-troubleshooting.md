@@ -91,9 +91,15 @@ Bowl annotations are one small file per video, so people can split the videos, t
 By default in `projects/` inside the app folder; the start page lists recent projects. The top bar shows the open
 project's name; hover over it for the path.
 
-**How do I cite the methods?**
-The [Statistical methods](11-statistics.md) and [Running the analysis](08-analysis.md) chapters give the definitions.
-Report the code version (commit) and the settings from the run's `manifest.json` and `feeding.yaml`.
+**How do I cite the tool and its methods?**
+Cite the software using `CITATION.cff` in the repository (on GitHub: **Cite this repository**), and cite
+[SLEAP](https://sleap.ai) for the pose estimation. The [Statistical methods](11-statistics.md) and
+[Running the analysis](08-analysis.md) chapters give the definitions. Report the code version (commit) and the
+settings from the run's `manifest.json` and `feeding.yaml`.
+
+**Under what license is the tool distributed?**
+BSD 3-Clause (see `LICENSE`): you may use, modify and redistribute it, in academic or any other work, provided the
+copyright notice is kept.
 
 ## Getting help
 

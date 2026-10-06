@@ -108,7 +108,10 @@ tests/
 The browser UI is plain HTML, CSS and JavaScript served by FastAPI. The server runs SLEAP and analyses as background
 jobs, one at a time.
 
-## License
+## Citation and license
 
-BSD 3-Clause; see [LICENSE](LICENSE). You may use, modify and redistribute the code, in academic or any other
-work, provided the copyright notice is kept.
+If you use the tool in published work, please cite it ([CITATION.cff](CITATION.cff), or **Cite this repository** on
+GitHub) together with [SLEAP](https://sleap.ai).
+
+Licensed under BSD 3-Clause; see [LICENSE](LICENSE). You may use, modify and redistribute the code, in academic or
+any other work, provided the copyright notice is kept.
