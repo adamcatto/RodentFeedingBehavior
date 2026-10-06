@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rodent Feeding Behavior</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    Rodent Feeding Behavior
+    <button id="btn-project" class="ghost project-btn" title="Open, switch or create a project">
+      <span class="muted small">Project</span> <strong id="project-name">none</strong> <span class="muted">▾</span>
+    </button>
+  </div>
+  <div class="top-actions">
+    <button id="btn-infer-all" title="Queue SLEAP inference for every video without predictions">Run SLEAP on all missing</button>
+    <button id="btn-analyze" title="Bouts, features, statistics and figures for every ready video">Run analysis</button>
+    <button id="btn-settings" class="ghost">Settings</button>
+    <button id="btn-results" class="ghost">Results</button>
+    <button id="btn-jobs" class="ghost">Jobs <span id="jobs-count" class="pill"></span></button>
+    <button id="btn-help" class="ghost" title="The user manual (also: press ? )">Help</button>
+  </div>
+</header>
+
+<div id="issues" class="issues" hidden></div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <input id="filter-text" type="search" placeholder="Filter videos…" autocomplete="off">
+    <div class="filter-row">
+      <select id="filter-context"><option value="">All contexts</option></select>
+      <select id="filter-condition"><option value="">All conditions</option></select>
+    </div>
+    <select id="filter-status">
+      <option value="">Any status</option>
+      <option value="needs-pred">Needs SLEAP predictions</option>
+      <option value="needs-bowl">Needs bowl annotation</option>
+      <option value="ready">Ready for analysis</option>
+    </select>
+    <div id="list-summary" class="muted small"></div>
+    <ul id="video-list" class="video-list"></ul>
+  </aside>
+
+  <main id="main">
+    <section id="welcome" class="empty" hidden>
+      <h2>Open a project</h2>
+      <p>A project is a folder with a <code>feeding.yaml</code>: it says where the videos and SLEAP model(s) are,
+        and holds the bowl annotations, predictions and results. Open an existing one or create a new one.</p>
+      <div class="btn-row"><button id="welcome-open">Open project…</button><button id="welcome-new" class="ghost">New project…</button>
+        <button id="welcome-demo" class="ghost" title="Synthetic videos and predictions: try every step without SLEAP or your own data">Try the demo project</button></div>
+      <div id="welcome-msg" class="small"></div>
+      <h3 class="recent-h">Recent</h3>
+      <ul id="welcome-recent" class="recent"></ul>
+    </section>
+
+    <section id="empty" class="empty" hidden>
+      <h2>Select a video</h2>
+      <p>For each video: run SLEAP (or import existing predictions), mark the bowl, then check the tracking. Once videos have both, run the analysis.</p>
+      <ol class="legend-list">
+        <li><span class="badge on">P</span> SLEAP predictions exist</li>
+        <li><span class="badge on">B</span> bowl annotated</li>
+      </ol>
+    </section>
+
+    <section id="detail" hidden>
+      <div class="detail-head">
+        <div>
+          <h2 id="v-name"></h2>
+          <div id="v-meta" class="muted"></div>
+        </div>
+        <div class="head-actions">
+          <span id="v-pred-status" class="small"></span>
+          <button id="btn-infer-one"></button>
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="bowl" class="tab">Bowl</button>
+        <button role="tab" data-tab="track" class="tab">Tracking</button>
+        <button role="tab" data-tab="sheet" class="tab">Overview</button>
+      </nav>
+
+      <div id="stage-wrap" class="stage-wrap">
+        <div class="stage-col">
+          <div class="stage"><canvas id="stage"></canvas><div id="stage-msg" class="stage-msg" hidden></div></div>
+          <div id="timeline-wrap" class="timeline-wrap" hidden>
+            <canvas id="timeline" height="44"></canvas>
+            <div class="timeline-legend small muted">
+              <span><i class="sw sw-valid"></i>tracked</span>
+              <span><i class="sw sw-invalid"></i>low confidence</span>
+              <span><i class="sw sw-bowl"></i>snout in bowl</span>
+              <span><i class="sw sw-bout"></i>bout</span>
+            </div>
+          </div>
+          <div class="frame-controls">
+            <button id="btn-prev" class="icon" title="Previous step (←)">◀</button>
+            <button id="btn-play" class="icon" title="Play / pause (space)">▶</button>
+            <button id="btn-next" class="icon" title="Next step (→)">▶︎|</button>
+            <input id="frame-slider" type="range" min="0" value="0">
+            <input id="frame-input" type="number" min="0" value="0" class="num">
+            <span id="frame-time" class="muted small mono"></span>
+          </div>
+          <div class="frame-controls small">
+            <label>Step <input id="step" type="number" min="1" value="15" class="num"> frames</label>
+            <label>every <select id="interval"><option value="400">0.4 s</option><option value="150" selected>0.15 s</option><option value="60">0.06 s</option><option value="1000">1 s</option></select></label>
+            <label>Zoom <select id="zoom"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+          </div>
+        </div>
+        <div id="sheet" class="sheet" hidden></div>
+
+        <div class="panel" id="panel-bowl">
+          <h3>Bowl <a class="qhelp" href="#help/bowls" title="Help: annotating the bowl">?</a></h3>
+          <div id="bowl-shape" class="seg" role="group" aria-label="Rim shape">
+            <button data-shape="ellipse">Ellipse</button><button data-shape="polygon">Polygon</button>
+          </div>
+          <p class="small muted"><span id="bowl-help"></span> Pick a frame where the bowl is unobstructed. Switching shape converts the current rim.</p>
+          <ol id="bowl-points" class="points"></ol>
+          <div id="bowl-stats" class="small mono"></div>
+          <div id="bowl-tools" class="tools small">
+            <span class="muted">Move</span>
+            <span><button class="ghost small" data-tool="move-left" title="Alt+←">←</button><button class="ghost small" data-tool="move-up" title="Alt+↑">↑</button><button class="ghost small" data-tool="move-down" title="Alt+↓">↓</button><button class="ghost small" data-tool="move-right" title="Alt+→">→</button></span>
+            <span class="muted">Rotate</span>
+            <span><button class="ghost small" data-tool="rot-ccw" title="[ (3°)">↺</button><button class="ghost small" data-tool="rot-cw" title="] (3°)">↻</button></span>
+            <span class="muted">Size</span>
+            <span><button class="ghost small" data-tool="shrink" title="−">−</button><button class="ghost small" data-tool="grow" title="=">+</button></span>
+            <span class="muted">Width</span>
+            <span><button class="ghost small" data-tool="narrower">−</button><button class="ghost small" data-tool="wider">+</button></span>
+            <span class="muted">Height</span>
+            <span><button class="ghost small" data-tool="shorter">−</button><button class="ghost small" data-tool="taller">+</button></span>
+          </div>
+          <p class="small muted">Shift-drag moves the whole bowl. Arrows nudge the selected point (shift = 2 px); Alt+arrows move the bowl; [ ] rotate; − = resize.</p>
+          <label class="small">Copy from
+            <select id="bowl-copy"><option value="">—</option></select>
+          </label>
+          <div class="btn-row">
+            <button id="bowl-save" class="primary" disabled>Save bowl</button>
+            <button id="bowl-reset" class="ghost">Revert</button>
+            <button id="bowl-delete" class="ghost danger">Delete</button>
+          </div>
+          <div id="bowl-msg" class="small"></div>
+        </div>
+
+        <div class="panel" id="panel-track" hidden>
+          <h3>Tracking <a class="qhelp" href="#help/tracking" title="Help: reviewing tracking">?</a></h3>
+          <div id="track-state" class="state-chip"></div>
+          <label class="small"><input type="checkbox" id="opt-skel" checked> Skeleton</label>
+          <label class="small"><input type="checkbox" id="opt-trail" checked> Snout trail (1 s)</label>
+          <label class="small"><input type="checkbox" id="opt-bowl" checked> Bowl</label>
+          <dl id="track-summary" class="summary small"></dl>
+          <p class="small muted">Hollow keypoints have SLEAP score below the quality threshold. Click the timeline to jump; bouts use the current config.</p>
+          <div id="bout-nav" class="btn-row"></div>
+        </div>
+
+        <div class="panel" id="panel-sheet" hidden>
+          <h3>Overview <a class="qhelp" href="#help/tracking/overview-sheet" title="Help: overview">?</a></h3>
+          <p class="small muted">Evenly spaced frames across the video with tracking overlaid. Click one to open it in Tracking.</p>
+          <div class="btn-row"><button id="sheet-shift" class="ghost">Shift sample</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="settings" hidden>
+      <div class="detail-head"><div><h2>Project settings</h2><div id="set-root" class="muted small mono"></div></div>
+        <div class="head-actions"><button id="set-save">Save</button><button id="set-close" class="ghost">Close</button></div></div>
+      <div id="set-msg" class="small"></div>
+
+      <div class="set-grid">
+        <section class="panel">
+          <h3>Videos <a class="qhelp" href="#help/projects/adding-videos" title="Help: adding videos">?</a></h3>
+          <div id="set-dropzone" class="dropzone">Drop video files here, or
+            <button type="button" class="ghost small" id="set-choose-files">choose files…</button>
+            <input id="set-files" type="file" accept="video/*,.mp4,.avi,.mov,.mpg,.mkv" multiple hidden>
+            — they are copied into the project's <span class="mono">videos/</span> folder.</div>
+          <div id="set-upload" class="small"></div>
+          <div class="small muted">Folders used in place:</div>
+          <ul id="set-dirs" class="dirs"></ul>
+          <button type="button" class="ghost small" data-browse-main="folder">+ Add a folder of videos…</button>
+        </section>
+
+        <section class="panel">
+          <h3>SLEAP models <a class="qhelp" href="#help/sleap/models" title="Help: SLEAP models">?</a></h3>
+          <p class="small muted">Model folders from the library (<span id="set-library" class="mono"></span>), the project's
+            <span class="mono">models/</span> folder, or anywhere. Context blank = every video; give contexts (e.g. A, B) to use
+            different models per context. Existing predictions keep the model they were made with.</p>
+          <div id="set-models"></div>
+          <button type="button" class="ghost small" id="set-add-model">+ Add model</button>
+          <div id="set-skeleton" class="small muted"></div>
+        </section>
+
+        <section class="panel wide" id="set-sleap-panel">
+          <h3>SLEAP inference <a class="qhelp" href="#help/sleap/inference-parameters" title="Help: inference parameters">?</a></h3>
+          <p class="small muted">Options for <span class="mono">sleap-track</span>. They apply to SLEAP runs started after saving;
+            existing predictions keep the parameters they were made with (shown on each video).</p>
+          <label class="field"><span>SLEAP environment (bin folder) <span class="muted small">— leave empty to find it automatically</span></span>
+            <div class="row"><input id="set-sleapbin" type="text" class="mono" placeholder="found automatically">
+              <button type="button" class="ghost" id="set-sleapbin-browse">Browse…</button></div>
+            <span id="set-sleap-found" class="small"></span></label>
+          <div id="set-sleap-params" class="param-grid"></div>
+          <details id="set-sleap-tracking"><summary class="small">Tracking options (when a tracker is used)</summary>
+            <div id="set-sleap-tracking-params" class="param-grid"></div></details>
+          <div class="small muted">Command: <code id="set-sleap-cmd" class="cmd"></code></div>
+        </section>
+
+        <section class="panel wide">
+          <h3>Naming <a class="qhelp" href="#help/projects/naming-videos" title="Help: naming patterns">?</a></h3>
+          <p class="small muted">How a video's file name maps to animal, condition and context. Named groups:
+            <code>animal</code> (required), <code>condition</code>, <code>context</code>, <code>session</code>, <code>part</code>.</p>
+          <div class="row"><select id="set-preset"></select></div>
+          <input id="set-pattern" type="text" class="mono pattern-input">
+          <div id="set-preview-summary" class="small"></div>
+          <div class="table-wrap"><table id="set-preview" class="tbl small"></table></div>
+          <label class="field"><span>Chamber labels <span class="muted small">(optional, e.g. A=square arena, B=round arena)</span></span><input id="set-chambers" type="text"></label>
+          <label class="field"><span>Conditions to compare <span class="muted small">(in order; first vs last are compared, e.g. Pre, Post; empty = all, by session)</span></span><input id="set-conditions" type="text"></label>
+        </section>
+
+        <section class="panel wide">
+          <h3>Animals and groups <a class="qhelp" href="#help/projects/animals-and-groups" title="Help: groups">?</a></h3>
+          <p class="small muted">Group labels (e.g. Control / Treated) used by the statistics. Saved to <span class="mono">metadata/subjects.csv</span>.</p>
+          <div class="table-wrap"><table id="set-subjects" class="tbl small"></table></div>
+          <datalist id="group-options"></datalist>
+        </section>
+      </div>
+    </section>
+
+    <section id="help" hidden>
+      <div class="detail-head">
+        <div><h2>User manual</h2><div class="muted small">The same manual is in the repository's <span class="mono">docs/</span> folder and as a Word file.</div></div>
+        <div class="head-actions">
+          <a id="help-docx" class="btnlink" href="/docs/Rodent-Feeding-Behavior-Manual.docx" download>Word version (.docx)</a>
+          <button id="help-close" class="ghost">Close</button>
+        </div>
+      </div>
+      <div class="help-wrap">
+        <nav class="help-nav" aria-label="Manual contents">
+          <input id="help-search" type="search" placeholder="Search the manual…" autocomplete="off">
+          <ol id="help-results" class="help-results" hidden></ol>
+          <ol id="help-toc" class="help-toc"></ol>
+        </nav>
+        <article id="help-body" class="doc"></article>
+      </div>
+    </section>
+
+    <section id="results" hidden>
+      <div class="detail-head">
+        <div>
+          <h2>Results <a class="qhelp" href="#help/results" title="Help: results">?</a></h2>
+          <div class="row small res-run-row">
+            <label for="res-run" class="muted">Analysis run</label>
+            <select id="res-run"></select>
+            <span id="res-meta" class="muted"></span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button id="res-reveal" class="ghost" title="Open the run folder in Finder / your file manager">Show folder</button>
+          <a id="res-export" class="btnlink" download title="Every table, workbook and figure of this run as one .zip">Export all (.zip)</a>
+          <button id="results-close" class="ghost">Close</button>
+        </div>
+      </div>
+      <nav class="tabs" id="res-tabs">
+        <button class="tab" data-rtab="compare">Comparisons</button>
+        <button class="tab" data-rtab="videos">Videos</button>
+        <button class="tab" data-rtab="explore">Exploratory</button>
+        <button class="tab" data-rtab="animals">Per animal</button>
+        <button class="tab" data-rtab="run">Run details</button>
+      </nav>
+      <div id="res-body"></div>
+    </section>
+  </main>
+</div>
+
+<div id="jobs-drawer" class="drawer" hidden>
+  <div class="drawer-head"><h3>Jobs</h3><div><button id="jobs-clear" class="ghost small">Clear finished</button> <button id="jobs-close" class="ghost">×</button></div></div>
+  <ul id="jobs-list" class="jobs-list"></ul>
+  <pre id="job-log" class="job-log" hidden></pre>
+</div>
+
+<dialog id="project-dialog" class="dialog">
+  <div class="dialog-head">
+    <nav class="tabs"><button class="tab" data-ptab="open">Open project</button><button class="tab" data-ptab="new">New project</button></nav>
+    <button class="ghost" id="pd-close">×</button>
+  </div>
+
+  <div id="ptab-open">
+    <label class="field">Project folder (contains feeding.yaml)
+      <div class="row"><input id="open-path" type="text" placeholder="/path/to/project"><button class="ghost" data-browse="open-path" data-kind="project">Browse…</button></div>
+    </label>
+    <div class="btn-row"><button id="open-go">Open</button></div>
+    <h3 class="recent-h">Recent</h3>
+    <ul id="dialog-recent" class="recent"></ul>
+  </div>
+
+  <form id="ptab-new" hidden onsubmit="return false">
+    <label class="field">Name
+      <input id="new-name" type="text" placeholder="e.g. cohort-2026-spring" required>
+      <span class="muted small">Saved in <span id="new-location-hint" class="mono"></span>
+        <button type="button" class="linklike" id="new-location-change">change…</button></span>
+      <input id="new-location" type="hidden">
+    </label>
+    <div class="field">Videos <span class="muted small">(at least one; more can be added any time in Settings)</span>
+      <div class="row">
+        <button type="button" class="ghost" id="new-choose-files">Choose video files…</button>
+        <input id="new-files" type="file" accept="video/*,.mp4,.avi,.mov,.mpg,.mkv" multiple hidden>
+        <span class="muted small">or</span>
+        <button type="button" class="ghost" data-browse="new-videos-folder" data-kind="videos">Use a folder of videos…</button>
+        <input id="new-videos-folder" type="hidden">
+      </div>
+      <div id="new-videos-summary" class="small muted"></div>
+    </div>
+    <label class="field"><span>SLEAP model <span class="muted small">(optional; can be added or changed later)</span></span>
+      <div class="row"><select id="new-model"></select><button type="button" class="ghost" data-browse="new-model-other" data-kind="model">Other folder…</button></div>
+      <input id="new-model-other" type="hidden">
+    </label>
+    <div class="btn-row"><button id="new-go" type="button">Create project</button></div>
+    <div id="new-progress" class="progress" hidden><i></i></div>
+  </form>
+
+  <div id="pd-msg" class="small"></div>
+
+</dialog>
+
+<dialog id="view-dialog" class="dialog view-dialog">
+  <div class="dialog-head"><h3><span id="vd-title">New comparison</span> <a class="qhelp" href="#help/comparisons" title="Help: comparisons" target="_blank">?</a></h3><button type="button" class="ghost" id="vd-x">×</button></div>
+  <p class="small muted vd-intro">A comparison ("view") puts two or more groups side by side. Each group is the videos whose
+    metadata match the values you tick; a field with nothing ticked matches anything. Every bout feature and session /
+    locomotion measure is then tested between the chosen pairs of groups.</p>
+  <div class="vd-top">
+    <label class="field">Name<input id="vd-name" type="text" placeholder="e.g. Control vs Treated, post-treatment sessions"></label>
+    <label class="field"><span>Description <span class="muted small">(optional)</span></span><input id="vd-desc" type="text"></label>
+  </div>
+  <div class="vd-groups-head">
+    <h3>Groups</h3>
+    <div class="row small">
+      <button type="button" class="ghost small" id="vd-add">+ Add group</button>
+      <span class="muted">or one group per</span>
+      <select id="vd-split"></select>
+      <button type="button" class="ghost small" id="vd-split-go" title="Adds a group for each value of this field, keeping the filters of the last group">Add</button>
+    </div>
+  </div>
+  <div id="vd-groups" class="vd-groups"></div>
+  <div class="vd-opts">
+    <div class="field">Pairs to test
+      <div class="seg" id="vd-pairs-mode"><button type="button" data-pm="all">All pairs</button><button type="button" data-pm="pick">Choose pairs</button></div>
+      <div id="vd-pairs" class="vd-pairs"></div>
+    </div>
+    <label class="field">Paired (repeated-measures) tests
+      <select id="vd-paired">
+        <option value="auto">Automatic: when the two groups are mostly the same animals</option>
+        <option value="yes">Always, over the animals in both groups</option>
+        <option value="no">Never (independent groups)</option>
+      </select>
+      <span class="muted small">Applies when statistics are per animal (<span class="mono" id="vd-unit"></span>).</span>
+    </label>
+  </div>
+  <div id="vd-msg" class="small"></div>
+  <div class="btn-row vd-foot">
+    <button type="button" id="vd-save-run">Save and run on this analysis</button>
+    <button type="button" class="ghost" id="vd-save">Save</button>
+    <button type="button" class="ghost" id="vd-cancel">Cancel</button>
+    <span class="spacer"></span>
+    <button type="button" class="ghost danger" id="vd-delete">Delete comparison</button>
+  </div>
+</dialog>
+
+<dialog id="lightbox" class="lightbox">
+  <div class="lb-head"><span id="lb-caption" class="small mono"></span>
+    <span class="row"><button class="ghost small" id="lb-prev" title="Previous (←)">←</button><button class="ghost small" id="lb-next" title="Next (→)">→</button>
+    <a id="lb-open" class="btnlink small" target="_blank">Open</a><button class="ghost small" id="lb-x">×</button></span></div>
+  <img id="lb-img" alt="">
+</dialog>
+
+<dialog id="fs-dialog" class="dialog fs-dialog">
+  <div class="dialog-head"><h3 id="fs-title">Choose a folder</h3><button type="button" class="ghost" id="fs-x">×</button></div>
+  <div class="fs-head">
+    <button type="button" class="ghost small" id="fs-up">↑ Up</button>
+    <button type="button" class="ghost small" id="fs-home">Home</button>
+    <input id="fs-path" type="text" class="mono" title="Type a path and press Enter">
+  </div>
+  <ul id="fs-list" class="fs-list"></ul>
+  <div id="fs-hint" class="small muted"></div>
+  <div class="btn-row"><button type="button" id="fs-choose">Use this folder</button><button type="button" class="ghost" id="fs-cancel">Cancel</button></div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

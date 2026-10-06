@@ -1,0 +1,78 @@
+# Feeding-behaviour project configuration.
+# Relative paths resolve against this folder. Everything except sleap.models has a default;
+# see the documentation (docs/) for every option.
+
+name: {name}
+
+paths:
+  videos: {videos}                     # per-animal videos (read-only input; may be outside the project)
+  predictions: data/predictions        # SLEAP .slp / .analysis.h5 / .provenance.json per video
+  bowls: annotations/bowls             # one JSON per video, written by the UI (commit these)
+  subjects: metadata/subjects.csv      # animal -> group (fill in the group column)
+  derived: data/derived                # cached per-video tracks (regenerated automatically)
+  results: data/results                # one folder per analysis run
+  logs: data/logs                      # job logs
+
+naming:
+  # Regex on each video's file stem. Named group `animal` is required; `session`, `part`,
+  # `condition` and `context` are optional. Files that don't match are ignored.
+  pattern: {pattern}
+  chambers: {chambers}                 # optional display label per context, e.g. {{A: square arena, B: round arena}}
+
+sleap:
+  # bin/ of the conda environment with SLEAP (sleap-track, sleap-convert). Empty (null) = found
+  # automatically: $FEEDING_SLEAP_BIN, sleap-track on the PATH, or a conda env named sleap*.
+  bin_dir: {bin_dir}
+  # Model per video context, or `default` for all. A value may be a list of model folders
+  # (top-down: [centroid, centered_instance]). Folders may be anywhere on disk.
+  models: {models}
+  # sleap-track options (also in Settings > SLEAP inference, and `feeding infer --help`).
+  batch_size: 4                        # frames per batch; larger = faster, more GPU memory
+  peak_threshold: 0.2                  # minimum confidence-map peak for a keypoint (0-1)
+  device: auto                         # auto | cpu | gpu | GPU index (0, 1, ...)
+  tracker: none                        # none (one animal per video) | simple | flow
+  # With a tracker: target_instance_count, pre_cull_to_target, post_connect_single_breaks,
+  # clean_instance_count, similarity (instance|centroid|iou), match (greedy|hungarian), track_window.
+  extra_args: []                       # passed verbatim to sleap-track (override the options above)
+
+skeleton:                              # read from the model by `feeding init`
+  nodes: {nodes}
+  edges: {edges}                       # only used for drawing in the UI
+
+quality:
+  drop_nodes: {drop_nodes}             # unreliable keypoints excluded from filtering and features
+  score_window: 300                    # frames; centred rolling mean of per-node SLEAP scores
+  min_score: 0.5                       # frame kept if every node's rolling mean score >= this
+  min_segment_frames: 90               # discard kept stretches shorter than this
+  max_interp_gap: 0                    # linearly fill NaN gaps up to this many frames (0 = off)
+
+bouts:
+  node: {bout_node}                    # keypoint whose contact with the bowl defines feeding
+  margin_px: 0                         # contact = node inside the bowl rim dilated by this many px
+  min_contact_frames: 15               # a bout needs one continuous contact at least this long
+  merge_gap_frames: 90                 # away-periods shorter than this are "returns" within one bout
+  flank_frames: 90                     # approach / withdrawal window; must be tracked and contact-free
+
+features:
+  speed_nodes: {speed_nodes}
+  # body_node: MidBack                 # whole-session locomotion (default MidBack if tracked)
+  # moving_speed: 1.0                  # px/frame above which the animal counts as moving
+
+analysis:
+  conditions: {conditions}             # in experimental order; first vs last are compared. [] = all, by session
+  unit: animal                         # animal (mean per animal-session; paired within-group) or bout
+  test: welch                          # welch | student | mannwhitney
+  correction: fdr_bh                   # bonferroni | fdr_bh
+  seed: 0
+  standard_view: true                  # also run the built-in comparisons (groups x conditions x contexts)
+
+# Comparison views: any groups against any groups. Each group is the videos whose metadata
+# match `where` (fields: group, condition, context, chamber, animal, session, part, video;
+# a field left out matches anything). Edit them in the UI (Results > Comparisons) or here.
+# `pairs` (optional) limits which groups are tested against each other; default all pairs.
+# `paired`: auto (default; when both groups are mostly the same animals) | yes | no.
+# views:
+#   - name: Control vs Treated, post-treatment
+#     groups:
+#       - {{label: Control, where: {{group: [Control], condition: [Post]}}}}
+#       - {{label: Treated, where: {{group: [Treated], condition: [Post]}}}}
