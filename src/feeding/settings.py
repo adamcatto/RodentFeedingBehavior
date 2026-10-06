@@ -69,19 +69,40 @@ def find_models(folders: list[Path]) -> list[dict]:
 # Where conda / mamba usually live; a SLEAP environment is looked for as <base>/envs/sleap*.
 _CONDA_BASES = ["~/miniconda3", "~/anaconda3", "~/miniforge3", "~/mambaforge", "~/micromamba", "~/opt/miniconda3",
                 "~/opt/anaconda3", "~/.conda", "/opt/conda", "/opt/miniconda3", "/opt/homebrew/Caskroom/miniforge/base",
-                "C:/ProgramData/miniconda3", "C:/ProgramData/Anaconda3"]
+                "~/AppData/Local/miniconda3", "~/AppData/Local/anaconda3", "~/AppData/Local/miniforge3",
+                "C:/ProgramData/miniconda3", "C:/ProgramData/Anaconda3", "C:/ProgramData/miniforge3"]
 
 
 def sleap_exe(bin_dir: Path | None, name: str) -> Path | None:
     """``name`` (sleap-track, sleap-convert, python) in a SLEAP environment's bin folder, if present.
-    On Windows, scripts are in ``Scripts\\`` and python.exe one level up."""
+    On Windows, scripts are in ``Scripts\\`` and python.exe one level up. The environment folder
+    itself is accepted too."""
     if bin_dir is None:
         return None
     bin_dir = Path(bin_dir)
-    for c in (bin_dir / name, bin_dir / f"{name}.exe", bin_dir.parent / f"{name}.exe"):
+    for c in (bin_dir / name, bin_dir / f"{name}.exe", bin_dir.parent / f"{name}.exe",
+              bin_dir / "bin" / name, bin_dir / "Scripts" / f"{name}.exe"):
         if c.is_file():
             return c
     return None
+
+
+def sleap_env(bin_dir: Path | None) -> dict[str, str]:
+    """Environment for SLEAP's programs, as if its conda environment were activated: its folders
+    first on PATH (on Windows, the TensorFlow and CUDA DLLs in ``Library\\bin`` are only found
+    through PATH), and UTF-8 output."""
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    if bin_dir is None:
+        return env
+    b = Path(bin_dir)
+    prefix = b.parent if b.name.lower() in ("bin", "scripts") else b
+    if os.name == "nt":
+        lib = prefix / "Library"
+        dirs = [prefix, lib / "mingw-w64" / "bin", lib / "usr" / "bin", lib / "bin", prefix / "Scripts", prefix / "bin"]
+    else:
+        dirs = [prefix / "bin"]
+    env["PATH"] = os.pathsep.join([str(d) for d in dirs if d.is_dir()] + [env.get("PATH", "")])
+    return env
 
 
 def find_sleap_bin() -> Path | None:

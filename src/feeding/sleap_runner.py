@@ -13,6 +13,7 @@ interrupted run never leaves a half-written file that looks complete.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -23,10 +24,25 @@ from .config import Config, skeleton_from_model
 from .naming import parse_video_name
 from .poses import node_names
 from .provenance import model_fingerprint, now_iso, sha256, write_json
-from .settings import sleap_exe
+from .settings import sleap_env, sleap_exe
 from .video import probe
 
 ProgressFn = Callable[[dict], None]
+
+
+def _run(cmd: list[str], bin_dir: Path | None) -> subprocess.CompletedProcess:
+    """Run one of SLEAP's programs to completion, in its environment."""
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          env=sleap_env(bin_dir))
+
+
+def _stop(proc: subprocess.Popen) -> None:
+    """Stop a SLEAP process and its children. On Windows, ``sleap-track.exe`` is a launcher that starts
+    Python as a child process, so the whole process tree is ended."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+    else:
+        proc.terminate()
 
 
 def prediction_paths(cfg: Config, video: str) -> dict[str, Path]:
@@ -66,7 +82,7 @@ def inspect_model(bin_dir: Path, model_dir: Path) -> dict:
     )
     py = sleap_exe(bin_dir, "python")
     if py is not None:
-        out = subprocess.run([str(py), "-c", code, str(cfg_path)], capture_output=True, text=True)
+        out = _run([str(py), "-c", code, str(cfg_path)], bin_dir)
         for line in out.stdout.splitlines():
             if line.startswith("@@"):
                 return {**json.loads(line[2:]), "source": "sleap"}
@@ -78,8 +94,7 @@ def sleap_version(cfg: Config) -> str:
     py = sleap_exe(cfg.sleap.bin_dir, "python")
     if py is None:
         return "unknown"
-    out = subprocess.run([str(py), "-c", "import sleap; print(sleap.__version__)"],
-                         capture_output=True, text=True)
+    out = _run([str(py), "-c", "import sleap; print(sleap.__version__)"], cfg.sleap.bin_dir)
     return out.stdout.strip() or "unknown"
 
 
@@ -116,7 +131,8 @@ def run_inference(
     started = now_iso()
     t0 = time.time()
     log("$ " + " ".join(track_cmd))
-    proc = subprocess.Popen(track_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    proc = subprocess.Popen(track_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                            encoding="utf-8", errors="replace", env=sleap_env(cfg.sleap.bin_dir))
     assert proc.stdout is not None
     for line in proc.stdout:
         line = line.rstrip()
@@ -131,7 +147,7 @@ def run_inference(
         if line:
             log(line)
         if should_stop and should_stop():
-            proc.terminate()
+            _stop(proc)
     rc = proc.wait()
     if should_stop and should_stop():
         tmp_slp.unlink(missing_ok=True)
@@ -141,7 +157,7 @@ def run_inference(
         raise RuntimeError(f"sleap-track exited with code {rc}")
 
     log("$ " + " ".join(convert_cmd))
-    conv = subprocess.run(convert_cmd, capture_output=True, text=True)
+    conv = _run(convert_cmd, cfg.sleap.bin_dir)
     if conv.returncode != 0:
         log(conv.stdout + conv.stderr)
         raise RuntimeError(f"sleap-convert exited with code {conv.returncode}")
